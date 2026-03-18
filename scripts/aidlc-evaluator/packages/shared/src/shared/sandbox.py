@@ -35,6 +35,9 @@ def is_docker_available() -> bool:
     Goes beyond ``docker info`` by spawning a trivial container, which
     catches cgroup v2 / OCI runtime errors that ``docker info`` misses.
 
+    Goes beyond ``docker info`` by spawning a trivial container, which
+    catches cgroup v2 / OCI runtime errors that ``docker info`` misses.
+
     The result is cached for the lifetime of the process.
     """
     global _DOCKER_AVAILABLE
