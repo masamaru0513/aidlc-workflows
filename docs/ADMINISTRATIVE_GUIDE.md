@@ -397,25 +397,26 @@ Defined in `cliff.toml` (used by `release-pr.yml`):
 | **Tag pattern**   | `v[0-9].*`                                            |
 | **Sort order**    | Oldest first                                          |
 
-**Commit groups:**
+**Commit groups** ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/) categories):
 
-| Prefix     | Group Name    |
-| ---------- | ------------- |
-| `feat`     | Features      |
-| `fix`      | Bug Fixes     |
-| `doc`      | Documentation |
-| `perf`     | Performance   |
-| `refactor` | Refactoring   |
-| `style`    | Style         |
-| `test`     | Tests         |
-| `ci`       | CI/CD         |
-| `chore`    | Miscellaneous |
+| Prefix     | Category | Notes                       |
+| ---------- | -------- | --------------------------- |
+| `feat`     | Added    |                             |
+| `fix`      | Fixed    |                             |
+| `sec`      | Security |                             |
+| `perf`     | Changed  |                             |
+| `refactor` | Changed  |                             |
+| `doc`      | Changed  |                             |
 
-**Filtered commits:**
+**Skipped commits** (excluded from changelog):
 
-| Pattern                  | Action                                     |
+| Pattern                  | Reason                                     |
 | ------------------------ | ------------------------------------------ |
-| `docs: update changelog` | Skipped (noise from previous release flow) |
+| `docs: update changelog` | Noise from previous release flow           |
+| `style`                  | Internal (no user-facing change)           |
+| `test`                   | Internal (no user-facing change)           |
+| `ci`                     | Internal (no user-facing change)           |
+| `chore`                  | Internal (no user-facing change)           |
 
 Unconventional commits are filtered out (`filter_unconventional = true`).
 
