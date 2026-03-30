@@ -1,0 +1,79 @@
+# markdownlint-cli2 configuration
+# https://github.com/DavidAnson/markdownlint-cli2
+# Run: npx markdownlint-cli2 "**/*.md"
+# Fix: npx markdownlint-cli2 --fix "**/*.md"
+
+config:
+  # ============================================================
+  # PERMANENTLY DISABLED — conflict with project documentation style
+  # ============================================================
+
+  # Line-length — long URLs, tables, code examples, ASCII diagrams
+  MD013: false
+
+  # Inline HTML — <img> tags for screenshots/badges in README
+  MD033: false
+
+  # Duplicate headings — section names repeat across platform guides
+  MD024: false
+
+  # Emphasis as heading — bold text used as sub-labels in lists
+  MD036: false
+
+  # ============================================================
+  # TEMPORARILY DISABLED — to be re-enabled one-by-one as fixes land
+  # Each rule listed in order of minimal LLM prompt impact.
+  # See PR #159 for the incremental remediation plan.
+  # ============================================================
+
+  # --- Tier 1: Zero prompt impact (invisible whitespace) ---
+  # PR 2: remove trailing whitespace
+  MD009: false  # no-trailing-spaces (10 violations)
+  # PR 3: remove extra blank lines
+  MD012: false  # no-multiple-blanks (20 violations)
+  # PR 4: ensure files end with newline
+  MD047: false  # single-trailing-newline (4 violations)
+
+  # --- Tier 2: Zero prompt impact (formatting normalization) ---
+  # PR 5: normalize ordered list numbering
+  MD029: false  # ol-prefix (2 violations)
+  # PR 6: normalize emphasis markers _ to *
+  MD049: false  # emphasis-style (18 violations)
+  # PR 7: remove trailing punctuation from headings
+  MD026: false  # no-trailing-punctuation (17 violations)
+
+  # --- Tier 3: Zero prompt impact (blank line structure) ---
+  # PR 8: add blank lines around headings
+  MD022: false  # blanks-around-headings (299 violations)
+  # PR 9: add blank lines around lists
+  MD032: false  # blanks-around-lists (493 violations)
+  # PR 10: add blank lines around fenced code blocks
+  MD031: false  # blanks-around-fences (69 violations)
+
+  # --- Tier 4: Minimal prompt impact (table/URL formatting) ---
+  # PR 11: normalize table pipe alignment
+  MD060: false  # table-column-style (358 violations)
+  # PR 12: wrap bare URLs in angle brackets
+  MD034: false  # no-bare-urls (2 violations)
+  # PR 13: remove blank lines inside blockquotes
+  MD028: false  # no-blanks-blockquote (4 violations)
+
+  # --- Tier 5: Low prompt impact (structural cosmetic) ---
+  # PR 14: normalize code block style to fenced
+  MD046: false  # code-block-style (8 violations)
+  # PR 15: fix unordered list indentation
+  MD007: false  # ul-indent (41 violations)
+  # PR 16: ensure first line is a heading
+  MD041: false  # first-line-heading (1 violation)
+
+  # --- Tier 6: Needs review (adds content or changes structure) ---
+  # PR 17: add language specifiers to fenced code blocks
+  MD040: false  # fenced-code-language (102 violations)
+  # PR 18: enforce single H1 per file
+  MD025: false  # single-title (13 violations)
+
+# Ignore generated/vendored/test fixture files
+ignores:
+  - "node_modules/**"
+  - ".claude/**"
+  - "scripts/aidlc-evaluator/test_cases/**"
