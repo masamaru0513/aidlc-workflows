@@ -63,8 +63,7 @@ config:
   MD046: false  # code-block-style (8 violations)
   # PR 15: fix unordered list indentation
   MD007: false  # ul-indent (41 violations)
-  # PR 16: ensure first line is a heading
-  MD041: false  # first-line-heading (1 violation)
+  # MD041/first-line-heading — re-enabled (1 violation fixed in this PR)
 
   # --- Tier 6: Needs review (adds content or changes structure) ---
   # PR 17: add language specifiers to fenced code blocks
