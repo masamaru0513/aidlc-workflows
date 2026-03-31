@@ -25,7 +25,7 @@ concurrency:
 
 env:
   CODEBUILD_PROJECT_NAME: ${{ vars.CODEBUILD_PROJECT_NAME || 'codebuild-project' }}
-  LABEL_REMINDER_MARKER: codebuild-label-reminder
+  LABEL_REMINDER_MARKER: rules-label-reminder
 
 permissions:
   actions: none
@@ -48,7 +48,7 @@ jobs:
   label-reminder:
     if: >-
       github.event_name == 'pull_request'
-      && !contains(github.event.pull_request.labels.*.name, 'codebuild')
+      && !contains(github.event.pull_request.labels.*.name, 'rules')
 
     permissions:
       pull-requests: write
@@ -56,9 +56,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Warn about missing codebuild label
+      - name: Warn about missing rules label
         run: |
-          echo "::warning::This PR changes aidlc-rules/ but does not have the 'codebuild' label. Add the label to trigger the CodeBuild evaluation pipeline."
+          echo "::warning::This PR changes aidlc-rules/ but does not have the 'rules' label. Add the label to trigger the CodeBuild evaluation pipeline."
 
       - name: Comment on PR
         if: github.event.pull_request.head.repo.full_name == github.repository
@@ -76,9 +76,9 @@ jobs:
             exit 0
           fi
           BODY="<!-- $MARKER -->
-          > **Note:** This PR changes \`aidlc-rules/\` but the \`codebuild\` label has not been applied.
+          > **Note:** This PR changes \`aidlc-rules/\` but the \`rules\` label has not been applied.
           >
-          > A maintainer must add the **codebuild** label to trigger the CodeBuild evaluation pipeline.
+          > A maintainer must add the **rules** label to trigger the CodeBuild evaluation pipeline.
           > Once labeled, subsequent pushes will re-trigger the build automatically."
           gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$BODY"
 
@@ -90,7 +90,7 @@ jobs:
   label-cleanup:
     if: >-
       github.event_name == 'pull_request'
-      && contains(github.event.pull_request.labels.*.name, 'codebuild')
+      && contains(github.event.pull_request.labels.*.name, 'rules')
       && github.event.pull_request.head.repo.full_name == github.repository
 
     permissions:
@@ -114,7 +114,7 @@ jobs:
             echo "No label-reminder comment found — nothing to clean up"
             exit 0
           fi
-          if gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/comments/$COMMENT_ID"; then
+          if gh api -X DELETE "repos/$REPO/issues/comments/$COMMENT_ID"; then
             echo "Removed label-reminder comment ($COMMENT_ID)"
           else
             echo "::warning::Failed to delete label-reminder comment ($COMMENT_ID) — it may have been removed already"
@@ -123,7 +123,7 @@ jobs:
   build:
     if: >-
       github.event_name != 'pull_request'
-      || contains(github.event.pull_request.labels.*.name, 'codebuild')
+      || contains(github.event.pull_request.labels.*.name, 'rules')
     environment: codebuild
 
     permissions:
