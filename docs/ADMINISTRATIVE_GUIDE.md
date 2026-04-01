@@ -508,10 +508,10 @@ All variables have sensible defaults via `${{ vars.VAR || 'default' }}` syntax, 
 | ------------------------- | ----------------------------------------- |
 | `codebuild.yml`           | All 16 scopes explicitly set to `none`    |
 | `pull-request-lint.yml`   | All 16 scopes explicitly set to `none`    |
+| `release.yml`             | All 16 scopes explicitly set to `none`    |
+| `release-pr.yml`          | All 16 scopes explicitly set to `none`    |
 | `security-scanners.yml`   | All 16 scopes explicitly set to `none`    |
-| `release.yml`             | `contents: write`                         |
-| `release-pr.yml`          | `contents: write`, `pull-requests: write` |
-| `tag-on-merge.yml`        | `contents: write`, `actions: write`       |
+| `tag-on-merge.yml`        | All 16 scopes explicitly set to `none`    |
 
 ### Job-level permissions (overrides)
 
@@ -525,8 +525,11 @@ All variables have sensible defaults via `${{ vars.VAR || 'default' }}` syntax, 
 | `pull-request-lint.yml` | `check-merge-status`   | `pull-requests: read`                                  | Read PR state for merge gate checks                            |
 | `pull-request-lint.yml` | `validate`             | `pull-requests: read`                                  | Read PR title for conventional commit validation               |
 | `pull-request-lint.yml` | `contributorStatement` | `pull-requests: read`                                  | Read PR body for contributor acknowledgment                    |
+| `release.yml`           | `release`              | `contents: write`                                      | Create draft release and attach zip artifact                   |
+| `release-pr.yml`        | `release-pr`           | `contents: write`, `pull-requests: write`              | Generate changelog, push branch, open PR                       |
+| `tag-on-merge.yml`      | `tag`                  | `contents: write`, `actions: write`                    | Create tag via API, dispatch release and codebuild workflows   |
 
-`security-scanners.yml` follows the same pattern: each of its six jobs grants only `actions: read`, `contents: read`, and `security-events: write`.
+All six workflows follow a **deny-all-then-grant** pattern: every permission scope is set to `none` at the workflow level, then only the required scopes are granted at the job level. `security-scanners.yml` grants each of its six jobs `actions: read`, `contents: read`, and `security-events: write`.
 
 `codebuild.yml`, `pull-request-lint.yml`, and `security-scanners.yml` all follow a **deny-all-then-grant** pattern: every permission scope is set to `none` at the workflow level, then only the required scopes are granted at the job level. This is the strictest possible configuration and prevents privilege escalation from compromised steps.
 
@@ -538,7 +541,7 @@ All variables have sensible defaults via `${{ vars.VAR || 'default' }}` syntax, 
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Supply-chain protection** | All external actions pinned to full commit SHAs (not mutable version tags)                                                                                        |
 | **AWS authentication**      | OIDC-based role assumption via `id-token: write` — no static credentials stored                                                                                   |
-| **Least-privilege tokens**  | `codebuild.yml`, `pull-request-lint.yml`, and `security-scanners.yml` explicitly deny all 16 permission scopes at workflow level, grant only required scopes at job level |
+| **Least-privilege tokens**  | All six workflows explicitly deny all 16 permission scopes at workflow level, grant only required scopes at job level |
 | **Environment protection**  | `codebuild` environment gates AWS credential access with potential reviewer/branch rules                                                                          |
 | **Security scanning**       | Six automated scanners (SAST, SCA, secrets, IaC, malware) run on every push to `main`, every PR, and daily. Findings are published to GitHub Code Scanning. All HIGH and CRITICAL findings require remediation or documented risk acceptance |
 | **Label-gated CI**          | `codebuild.yml` requires the `rules` label on PRs and only triggers for `aidlc-rules/**` changes, preventing unnecessary builds and environment approval prompts. The label is applied automatically by the `auto-label` job in `pull-request-lint.yml` |
