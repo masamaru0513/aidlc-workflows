@@ -39,7 +39,7 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     env:
-      GITLEAKS_VERSION: "8.30.0"
+      GITLEAKS_VERSION: "8.30.1"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -67,7 +67,7 @@ jobs:
           name: gitleaks.sarif
           path: gitleaks-report_sarif.json
           if-no-files-found: error
-      - uses: github/codeql-action/upload-sarif@5e7a52feb2a3dfb87f88be2af33b9e2275f48de6 # v4.32.2
+      - uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         continue-on-error: true
         with:
           sarif_file: gitleaks-report_sarif.json
@@ -83,7 +83,7 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     env:
-      SEMGREP_VERSION: "1.151.0"
+      SEMGREP_VERSION: "1.157.0"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -151,7 +151,7 @@ jobs:
           name: semgrep.sarif
           path: semgrep-report_sarif.json
           if-no-files-found: error
-      - uses: github/codeql-action/upload-sarif@5e7a52feb2a3dfb87f88be2af33b9e2275f48de6 # v4.32.2
+      - uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         continue-on-error: true
         with:
           sarif_file: semgrep-report_sarif.json
@@ -169,7 +169,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/43e7e3246ed01b1ec0ff54f9b054201ccbe78e3a/install.sh | sh -s -- -b /usr/local/bin v0.104.3
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/dee8de483dfba5b4e0bc0aa8e4ab2ce52137e490/install.sh | sh -s -- -b /usr/local/bin v0.110.0
           grype --version
       - name: Run grype
         id: grype
@@ -186,7 +186,7 @@ jobs:
           name: grype.sarif
           path: grype-report_sarif.json
           if-no-files-found: error
-      - uses: github/codeql-action/upload-sarif@5e7a52feb2a3dfb87f88be2af33b9e2275f48de6 # v4.32.2
+      - uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         continue-on-error: true
         with:
           sarif_file: grype-report_sarif.json
@@ -202,7 +202,7 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     env:
-      BANDIT_VERSION: "1.9.3"
+      BANDIT_VERSION: "1.9.4"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: |
@@ -228,7 +228,7 @@ jobs:
           name: bandit.sarif
           path: bandit-report_sarif.json
           if-no-files-found: error
-      - uses: github/codeql-action/upload-sarif@5e7a52feb2a3dfb87f88be2af33b9e2275f48de6 # v4.32.2
+      - uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         continue-on-error: true
         with:
           sarif_file: bandit-report_sarif.json
@@ -244,7 +244,7 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     env:
-      CHECKOV_VERSION: "3.2.500"
+      CHECKOV_VERSION: "3.2.513"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: |
@@ -271,7 +271,7 @@ jobs:
           name: checkov.sarif
           path: checkov-report_sarif.json
           if-no-files-found: error
-      - uses: github/codeql-action/upload-sarif@5e7a52feb2a3dfb87f88be2af33b9e2275f48de6 # v4.32.2
+      - uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         continue-on-error: true
         with:
           sarif_file: checkov-report_sarif.json
@@ -288,7 +288,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       clamav:
-        image: clamav/clamav@sha256:a56287b4ffa299bde2ef09234cb8b6134d591d0be05b63f5065932dc93cb2435
+        image: clamav/clamav@sha256:bf876a415b7ff77b9305b1de087e6d16833d170931581b01404e8761cb0dc87c
         ports:
           - 127.0.0.1:3310:3310
         options: >-

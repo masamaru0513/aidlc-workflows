@@ -30,6 +30,7 @@ This guide documents the CI/CD infrastructure, GitHub Workflows, protected envir
 - [Code Ownership](#code-ownership)
 - [Release Process](#release-process)
 - [Changelog Configuration](#changelog-configuration)
+- [Updating Pinned Versions](#updating-pinned-versions)
 
 ---
 
@@ -426,14 +427,14 @@ Only runs for `pull_request` and `pull_request_target` events. Skipped for bot a
 
 **Jobs:**
 
-| Job | Scanner | Version | What it detects | Fails on |
-|-----|---------|---------|-----------------|----------|
-| `gitleaks` | Gitleaks | 8.30.0 | Secrets in git history | Any secret not in `.gitleaks-baseline.json` |
-| `semgrep` | Semgrep | 1.151.0 | Security anti-patterns (all languages) | Any finding (PRs: new findings only via `--baseline-commit`) |
-| `grype` | Grype | 0.104.3 | Known CVEs in dependencies | High or critical CVEs (`fail-on-severity: high`) |
-| `bandit` | Bandit | 1.9.3 | Python security issues | Any finding with high confidence |
-| `checkov` | Checkov | 3.2.500 | IaC misconfigurations (GitHub Actions, Dockerfiles) | Any check failure (minus skipped checks) |
-| `clamav` | ClamAV | _(image pinned by SHA)_ | Malware and viruses | Any detection |
+| Job | Scanner | What it detects | Fails on |
+|-----|---------|-----------------|----------|
+| `gitleaks` | Gitleaks | Secrets in git history | Any secret not in `.gitleaks-baseline.json` |
+| `semgrep` | Semgrep | Security anti-patterns (all languages) | Any finding (PRs: new findings only via `--baseline-commit`) |
+| `grype` | Grype | Known CVEs in dependencies | High or critical CVEs (`fail-on-severity: high`) |
+| `bandit` | Bandit | Python security issues | Any finding with high confidence |
+| `checkov` | Checkov | IaC misconfigurations (GitHub Actions, Dockerfiles) | Any check failure (minus skipped checks) |
+| `clamav` | ClamAV | Malware and viruses | Any detection |
 
 **Deferred-failure pattern:** All scanners capture the exit code without failing the step (`set +e`), upload the SARIF report as an artifact and to GitHub Code Scanning, then fail the job if findings were detected. This ensures results are always preserved regardless of outcome. ClamAV follows the same pattern but uploads a text log instead of SARIF.
 
@@ -448,14 +449,7 @@ Only runs for `pull_request` and `pull_request_target` events. Skipped for bot a
 | `.grype.yaml` | Grype severity threshold and CVE ignore list |
 | `.checkov.yaml` | Checkov frameworks and skipped checks |
 
-**External actions (SHA-pinned):**
-
-| Action | Version | SHA |
-|--------|---------|-----|
-| `actions/checkout` | v6.0.2 | `de0fac2e4500dabe0009e67214ff5f5447ce83dd` |
-| `actions/setup-python` | v6.2.0 | `a309ff8b426b58ec0e2a45f0f869d46889d02405` |
-| `actions/upload-artifact` | v7.0.0 | `bbbca2ddaa5d8feaa63e36b76fdaad77386f024f` |
-| `github/codeql-action/upload-sarif` | v4.32.2 | `5e7a52feb2a3dfb87f88be2af33b9e2275f48de6` |
+**Version pinning:** All scanner tool versions and GitHub Actions are pinned to specific versions or commit SHAs in the workflow file to ensure reproducible builds and prevent supply-chain attacks. These pins should be reviewed and updated periodically (at least quarterly). See [Updating Pinned Versions](#updating-pinned-versions) for the update procedure.
 
 For detailed remediation and suppression instructions, see [Developer's Guide — Security Scanners](DEVELOPERS_GUIDE.md#security-scanners).
 
@@ -662,3 +656,20 @@ Unconventional commits are filtered out (`filter_unconventional = true`).
 | `breaking_always_bump_major = true` | Breaking changes trigger a major version bump |
 
 These rules are used by `git-cliff --bumped-version` when auto-determining the next version in `release-pr.yml`.
+
+---
+
+## Updating Pinned Versions
+
+All scanner tools, GitHub Actions, and container images in the workflow files are pinned to specific versions or commit SHAs. This prevents supply-chain attacks and ensures reproducible builds, but requires periodic maintenance to stay current with security patches and new features.
+
+Pinned versions should be reviewed and updated **at least quarterly**.
+
+<!-- TODO: Add step-by-step instructions for updating pinned versions, including:
+  - How to check for latest versions of each scanner tool (PyPI, GitHub releases, Docker Hub)
+  - How to look up commit SHAs for GitHub Actions (gh api repos/OWNER/REPO/git/ref/tags/TAG)
+  - How to look up Docker image digests (docker manifest inspect)
+  - How to verify the update works (run the workflow on a feature branch)
+  - How to handle breaking changes in scanner tool upgrades
+  - Consider automating this with Dependabot or Renovate
+-->
