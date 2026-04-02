@@ -523,9 +523,7 @@ All variables have sensible defaults via `${{ vars.VAR || 'default' }}` syntax, 
 | `release-pr.yml`        | `release-pr`           | `contents: write`, `pull-requests: write`              | Generate changelog, push branch, open PR                       |
 | `tag-on-merge.yml`      | `tag`                  | `contents: write`, `actions: write`                    | Create tag via API, dispatch release and codebuild workflows   |
 
-All six workflows follow a **deny-all-then-grant** pattern: every permission scope is set to `none` at the workflow level, then only the required scopes are granted at the job level. `security-scanners.yml` grants each of its six jobs `actions: read`, `contents: read`, and `security-events: write`.
-
-`codebuild.yml`, `pull-request-lint.yml`, and `security-scanners.yml` all follow a **deny-all-then-grant** pattern: every permission scope is set to `none` at the workflow level, then only the required scopes are granted at the job level. This is the strictest possible configuration and prevents privilege escalation from compromised steps.
+All six workflows follow a **deny-all-then-grant** pattern: every permission scope is set to `none` at the workflow level, then only the required scopes are granted at the job level. This is the strictest possible configuration and prevents privilege escalation from compromised steps. `security-scanners.yml` grants each of its six jobs `actions: read`, `contents: read`, and `security-events: write`.
 
 ---
 
