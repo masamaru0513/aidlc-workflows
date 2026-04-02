@@ -72,9 +72,11 @@ jobs:
         with:
           sarif_file: gitleaks-report_sarif.json
       - if: steps.gitleaks.outputs.exit_code != '0'
+        env:
+          SCANNER_EXIT: ${{ steps.gitleaks.outputs.exit_code }}
         run: |
           echo "::error::gitleaks found secrets"
-          exit ${{ steps.gitleaks.outputs.exit_code }}  # nosemgrep: yaml.github-actions.security.curl-eval.curl-eval
+          exit "$SCANNER_EXIT"
 
   semgrep:
     permissions:
@@ -156,9 +158,11 @@ jobs:
         with:
           sarif_file: semgrep-report_sarif.json
       - if: steps.semgrep.outputs.exit_code != '0'
+        env:
+          SCANNER_EXIT: ${{ steps.semgrep.outputs.exit_code }}
         run: |
           echo "::error::semgrep found new security issues"
-          exit ${{ steps.semgrep.outputs.exit_code }}  # nosemgrep: yaml.github-actions.security.curl-eval.curl-eval
+          exit "$SCANNER_EXIT"
 
   grype:
     permissions:
@@ -191,9 +195,11 @@ jobs:
         with:
           sarif_file: grype-report_sarif.json
       - if: steps.grype.outputs.exit_code != '0'
+        env:
+          SCANNER_EXIT: ${{ steps.grype.outputs.exit_code }}
         run: |
           echo "::error::grype found vulnerabilities"
-          exit ${{ steps.grype.outputs.exit_code }}  # nosemgrep: yaml.github-actions.security.curl-eval.curl-eval
+          exit "$SCANNER_EXIT"
 
   bandit:
     permissions:
@@ -233,9 +239,11 @@ jobs:
         with:
           sarif_file: bandit-report_sarif.json
       - if: steps.bandit.outputs.exit_code != '0'
+        env:
+          SCANNER_EXIT: ${{ steps.bandit.outputs.exit_code }}
         run: |
           echo "::error::bandit found security issues"
-          exit ${{ steps.bandit.outputs.exit_code }}  # nosemgrep: yaml.github-actions.security.curl-eval.curl-eval
+          exit "$SCANNER_EXIT"
 
   checkov:
     permissions:
@@ -276,9 +284,11 @@ jobs:
         with:
           sarif_file: checkov-report_sarif.json
       - if: steps.checkov.outputs.exit_code != '0'
+        env:
+          SCANNER_EXIT: ${{ steps.checkov.outputs.exit_code }}
         run: |
           echo "::error::checkov found IaC issues"
-          exit ${{ steps.checkov.outputs.exit_code }}  # nosemgrep: yaml.github-actions.security.curl-eval.curl-eval
+          exit "$SCANNER_EXIT"
 
   clamav:
     permissions:
@@ -327,6 +337,8 @@ jobs:
           path: clamdscan.txt
           if-no-files-found: error
       - if: steps.clamav.outputs.exit_code != '0'
+        env:
+          SCANNER_EXIT: ${{ steps.clamav.outputs.exit_code }}
         run: |
           echo "::error::clamav detected malware"
-          exit ${{ steps.clamav.outputs.exit_code }}  # nosemgrep: yaml.github-actions.security.curl-eval.curl-eval
+          exit "$SCANNER_EXIT"
