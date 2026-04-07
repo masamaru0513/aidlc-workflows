@@ -165,7 +165,7 @@ jobs:
       - name: Run CodeBuild
         if: steps.cache-check.outputs.cache-hit != 'true'
         id: codebuild
-        uses: aws-actions/aws-codebuild-run-build@e3bc6b56e0bb186c499f0100e32c488672c64b29 # v1.0.19
+        uses: aws-actions/aws-codebuild-run-build@7e46c3fa1c1f217e26a73712796b1f78938b534b # v1.0.19
         with:
           project-name: ${{ env.CODEBUILD_PROJECT_NAME }}
           source-version-override: ${{ github.sha }}
