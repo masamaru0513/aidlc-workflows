@@ -7,6 +7,8 @@
 The following question is automatically included in the Requirements Analysis clarifying questions when this extension is loaded:
 
 ```markdown
+> Present this question in the same language as the user's conversation.
+
 ## Question: Security Extensions
 Should security extension rules be enforced for this project?
 
