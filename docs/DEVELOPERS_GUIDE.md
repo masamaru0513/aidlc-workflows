@@ -12,6 +12,7 @@ You can run AWS CodeBuild builds locally using the [CodeBuild local agent](https
 ### Basic Usage
 
 1. Setup
+
 - Download the local CodeBuild script and make it executable.
 - Send the `GH_TOKEN` environmental GitHub Personal Access Token (PAT) into a `./.env` file
 
@@ -22,7 +23,7 @@ fi;
 echo "GH_TOKEN=${GH_TOKEN:-ghp_notset}" > "./.env";
 ```
 
-2. Iterate
+1. Iterate
 
 - _Optionally edit the `buildspec-override` value in the `.github/workflows/codebuild.yml` GitHub workflow_
 - Update `./buildspec.yml` based on the workflow contents to a local file
@@ -42,20 +43,19 @@ cat .github/workflows/codebuild.yml \
 
 ### All Script Options
 
-| Flag         | Required | Description                                                                                                                                                                                         |
-|--------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `-i IMAGE`   | Yes      | Customer build container image (e.g. `aws/codebuild/standard:5.0`)                                                                                                                                  |
-| `-a DIR`     | Yes      | Artifact output directory                                                                                                                                                                           |
-| `-b FILE`    | No       | Buildspec override file. Defaults to `buildspec.yml` in the source directory                                                                                                                        |
-| `-s DIR`     | No       | Source directory. First `-s` is the primary source; additional `-s` flags use `<sourceIdentifier>:<sourceLocation>` format for secondary sources. Defaults to the current working directory |
-| `-l IMAGE`   | No       | Override the default local agent image                                                                                                                                                              |
-| `-r DIR`     | No       | Report output directory                                                                                                                                                                             |
-| `-c`         | No       | Use AWS configuration and credentials from your local host (`~/.aws` and `AWS_*` environment variables)                                                                                             |
-| `-p PROFILE` | No       | AWS CLI profile to use (requires `-c`)                                                                                                                                                              |
-| `-e FILE`    | No       | File containing environment variables (`VAR=VAL` format, one per line)                                                                                                                              |
-| `-m`         | No       | Mount the source directory into the build container directly                                                                                                                                        |
-| `-d`         | No       | Run the build container in Docker privileged mode                                                                                                                                                   |
-
+| Flag           | Required   | Description                                                                                                                                                                                           |
+| -------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-i IMAGE`     | Yes        | Customer build container image (e.g. `aws/codebuild/standard:5.0`)                                                                                                                                    |
+| `-a DIR`       | Yes        | Artifact output directory                                                                                                                                                                             |
+| `-b FILE`      | No         | Buildspec override file. Defaults to `buildspec.yml` in the source directory                                                                                                                          |
+| `-s DIR`       | No         | Source directory. First `-s` is the primary source; additional `-s` flags use `<sourceIdentifier>:<sourceLocation>` format for secondary sources. Defaults to the current working directory           |
+| `-l IMAGE`     | No         | Override the default local agent image                                                                                                                                                                |
+| `-r DIR`       | No         | Report output directory                                                                                                                                                                               |
+| `-c`           | No         | Use AWS configuration and credentials from your local host (`~/.aws` and `AWS_*` environment variables)                                                                                               |
+| `-p PROFILE`   | No         | AWS CLI profile to use (requires `-c`)                                                                                                                                                                |
+| `-e FILE`      | No         | File containing environment variables (`VAR=VAL` format, one per line)                                                                                                                                |
+| `-m`           | No         | Mount the source directory into the build container directly                                                                                                                                          |
+| `-d`           | No         | Run the build container in Docker privileged mode                                                                                                                                                     |
 
 ## Security Scanners
 
@@ -80,9 +80,11 @@ All scanners except ClamAV use a **deferred-failure pattern**: the scan always r
 
 - **Fix the code** — the preferred approach. Bandit docs list safe alternatives for each rule
 - **Suppress inline** — add `# nosec BXXX` (with a justification) to the affected line:
+
   ```python
   subprocess.run(cmd, check=True)  # nosec B603 — cmd is built from validated config, not user input
   ```
+
 - **Exclude a path** — add to the `exclude` list in `.bandit`
 
 ### Semgrep — Multi-language SAST
@@ -100,13 +102,17 @@ All scanners except ClamAV use a **deferred-failure pattern**: the scan always r
 
 - **Fix the code** — follow the rule's suggested fix in the Semgrep Registry docs
 - **Suppress inline** — add `# nosemgrep: <rule-id>` to the affected line:
+
   ```python
   time.sleep(5)  # nosemgrep: arbitrary-sleep — polling for server startup
   ```
+
   For YAML files:
+
   ```yaml
   run: exit ${{ steps.scan.outputs.exit_code }}  # nosemgrep: yaml.github-actions.security.curl-eval.curl-eval
   ```
+
 - **Exclude a path** — add the path to `.semgrepignore` (note: the `changed-semgrepignore` audit rule will flag new entries for app-sec review)
 
 ### Grype — Dependency Vulnerability Scanning (SCA)
@@ -124,12 +130,15 @@ All scanners except ClamAV use a **deferred-failure pattern**: the scan always r
 
 - **Upgrade the dependency** — the preferred approach. Check if a patched version exists and update the relevant `pyproject.toml` or lock file
 - **Suppress in config** — add an entry to the `ignore` list in `.grype.yaml` with a reason:
+
   ```yaml
   ignore:
     - vulnerability: CVE-2024-12345
       reason: "only affects server-side XML parsing which we don't use"
   ```
+
   You can scope to a specific package:
+
   ```yaml
   ignore:
     - vulnerability: CVE-2024-12345
@@ -157,9 +166,11 @@ All scanners except ClamAV use a **deferred-failure pattern**: the scan always r
 - **Rotate the secret immediately** — treat any detected secret as compromised
 - **Remove from history** — use `git filter-repo` or BFG Repo-Cleaner to purge the secret from all commits
 - **Add to baseline** — only for known false positives (e.g., test fixtures with synthetic credentials). Regenerate the baseline:
+
   ```bash
   gitleaks git --config=.gitleaks.toml --report-path=.gitleaks-baseline.json --report-format=json .
   ```
+
   Review the updated baseline carefully before committing
 - **Allowlist a path** — add a regex to `.gitleaks.toml` under `[allowlist] paths` for files that intentionally contain secret-like patterns (e.g., test credential scrubbers)
 
@@ -182,19 +193,25 @@ All scanners except ClamAV use a **deferred-failure pattern**: the scan always r
 - **Suppress inline** — add a comment above or on the affected line:
 
   In a Dockerfile:
+
   ```dockerfile
   # checkov:skip=CKV_DOCKER_2:healthcheck not needed for build-only image
   FROM python:3.12-slim
   ```
+
   In a GitHub Actions workflow:
+
   ```yaml
   # checkov:skip=CKV_GHA_7:buildspec-override requires user parameters
   - uses: aws-actions/aws-codebuild-run-build@v1
   ```
+
   Multiple skips on one line:
+
   ```yaml
   # checkov:skip=CKV_DOCKER_2,CKV_DOCKER_3:reason for both
   ```
+
 - **Skip repo-wide** — add the check ID to the `skip-check` list in `.checkov.yaml` with a comment explaining why
 
 ### ClamAV — Malware Scanning
@@ -216,26 +233,25 @@ All scanners except ClamAV use a **deferred-failure pattern**: the scan always r
 
 ### Summary of Failure Thresholds
 
-| Scanner | Fails on | Severity filter | Config file |
-|---------|----------|-----------------|-------------|
-| Bandit | Any finding with high confidence | All severities | `.bandit` |
-| Semgrep | Any finding (PRs: new only) | All severities | `.semgrepignore` |
-| Grype | High or critical CVEs | Low/medium don't fail | `.grype.yaml` |
-| Gitleaks | Any secret not in baseline | All | `.gitleaks.toml`, `.gitleaks-baseline.json` |
-| Checkov | Any check failure | All (minus skipped) | `.checkov.yaml` |
-| ClamAV | Any malware detection | Binary pass/fail | None |
+| Scanner  | Fails on                         | Severity filter       | Config file                                 |
+| -------- | -------------------------------- | --------------------- | ------------------------------------------- |
+| Bandit   | Any finding with high confidence | All severities        | `.bandit`                                   |
+| Semgrep  | Any finding (PRs: new only)      | All severities        | `.semgrepignore`                            |
+| Grype    | High or critical CVEs            | Low/medium don't fail | `.grype.yaml`                               |
+| Gitleaks | Any secret not in baseline       | All                   | `.gitleaks.toml`, `.gitleaks-baseline.json` |
+| Checkov  | Any check failure                | All (minus skipped)   | `.checkov.yaml`                             |
+| ClamAV   | Any malware detection            | Binary pass/fail      | None                                        |
 
 ### Summary of Suppression Methods
 
-| Scanner | Inline comment | Config-level | Baseline/differential |
-|---------|---------------|-------------|----------------------|
-| Bandit | `# nosec BXXX` | `.bandit` `exclude` | — |
-| Semgrep | `# nosemgrep: rule-id` | `.semgrepignore` | `--baseline-commit` on PRs |
-| Grype | _(not applicable — SCA)_ | `.grype.yaml` `ignore` | — |
-| Gitleaks | — | `.gitleaks.toml` `allowlist` | `.gitleaks-baseline.json` |
-| Checkov | `# checkov:skip=ID:reason` | `.checkov.yaml` `skip-check` | — |
-| ClamAV | — | — | — |
-
+| Scanner  | Inline comment              | Config-level                  | Baseline/differential       |
+| -------- | --------------------------- | ----------------------------- | --------------------------- |
+| Bandit   | `# nosec BXXX`              | `.bandit` `exclude`           | —                           |
+| Semgrep  | `# nosemgrep: rule-id`      | `.semgrepignore`              | `--baseline-commit` on PRs  |
+| Grype    | _(not applicable — SCA)_    | `.grype.yaml` `ignore`        | —                           |
+| Gitleaks | —                           | `.gitleaks.toml` `allowlist`  | `.gitleaks-baseline.json`   |
+| Checkov  | `# checkov:skip=ID:reason`  | `.checkov.yaml` `skip-check`  | —                           |
+| ClamAV   | —                           | —                             | —                           |
 
 ## Running GitHub Actions locally
 
