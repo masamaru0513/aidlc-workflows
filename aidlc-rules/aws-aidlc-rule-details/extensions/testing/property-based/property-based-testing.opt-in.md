@@ -7,8 +7,6 @@
 The following question is automatically included in the Requirements Analysis clarifying questions when this extension is loaded:
 
 ```markdown
-> Present this question in the same language as the user's conversation.
-
 ## Question: Property-Based Testing Extension
 Should property-based testing (PBT) rules be enforced for this project?
 
