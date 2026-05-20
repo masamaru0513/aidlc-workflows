@@ -101,6 +101,7 @@ Skip this step entirely when the skill's `plan-creation: "false"` — go straigh
    - **functional-design**: technology-agnostic domain/business logic only.
 5. **Gap handling.** If you discover a requirement or capability not covered by the inputs, raise it as a follow-up question. Do not silently add functionality beyond what is documented upstream.
 6. **Brownfield context.** When a skill's prerequisites mention brownfield, accept brownfield context from any available source: codekb, reverse-engineering artifacts, org-level knowledge base, or LLM analysis of the existing codebase. Do not restate this in the skill's `SKILL.md`.
+7. **Language.** Write user-facing files in the same language the human used in their most recent message, unless the human explicitly requests a different language. User-facing files are: question files, plan files, and design artifacts. All other files (state tracking, audit logs, validation results, and any machine-parsed files) remain in English.
 
 ## 4. State File Responsibilities
 
