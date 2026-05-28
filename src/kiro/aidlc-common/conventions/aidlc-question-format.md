@@ -27,3 +27,7 @@ d) Other
 - Wait for the human's answer before presenting the next question.
 - The human may choose to answer in chat or go to the question file and answer all at once.
 - Trade Offs and Recommendation sections are optional per question — include them when the choice has meaningful implications, skip for straightforward questions.
+
+## Language
+
+Always write questions in the same language the human used in their most recent message, unless the human explicitly requests a different language.
