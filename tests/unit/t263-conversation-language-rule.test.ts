@@ -41,7 +41,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { REPO_ROOT } from "../harness/fixtures.ts";
@@ -354,5 +354,135 @@ describe("t263 conversation-language rule layer", () => {
         ).toBe(false);
       }
     }
+  });
+
+  // === (e) SWITCH PRECEDENCE ================================================
+  // The second-pass review found the ordering contradiction these two tests
+  // pin. The resolution rule used to rank a persisted `project.md`/`team.md`
+  // language rule ABOVE the brief line, while the stability rule promised an
+  // explicit switch takes effect immediately and persists only later at the
+  // human-gated learnings ritual. A persisted-Japanese workflow that switched
+  // to English therefore sent `Conversation language: English` in the brief and
+  // the delegate stopped at the stale memory rule first.
+  //
+  // The fix inverts the two: the brief is authoritative for delegated work
+  // because the orchestrator regenerates it from the live conversation on every
+  // dispatch, so it can never be staler than a file on disk. Memory is the
+  // fallback for a brief that states no language.
+  test("e: the brief outranks persisted memory in the resolution order", () => {
+    const entries = sectionEntries(readFileSync(AUTHORED_ORG_MD, "utf-8"), "Mandated");
+    const rule = entries.find((entry) =>
+      entry.startsWith("**Conversation language — resolution**"),
+    );
+    expect(rule, "the resolution rule exists").toBeDefined();
+
+    const briefFirst = rule!.indexOf("(1) the `Conversation language:` line in your brief");
+    const memorySecond = rule!.indexOf("(2) an explicit conversation-language rule");
+    expect(briefFirst, "the brief line is ranked (1)").toBeGreaterThan(-1);
+    expect(memorySecond, "the persisted memory rule is ranked (2)").toBeGreaterThan(-1);
+    expect(briefFirst, "the brief is resolved BEFORE persisted memory").toBeLessThan(
+      memorySecond,
+    );
+    // Naming the roles is what makes the ordering survive a reword.
+    expect(rule!.includes("AUTHORITATIVE for delegated work")).toBe(true);
+    expect(rule!.includes("the FALLBACK for a brief that states no language")).toBe(true);
+
+    // The learnings write path APPENDS (aidlc-learnings.ts appendUnderHeading,
+    // deduped only against an identical line), and org.md's `## Corrections`
+    // ships empty so the ritual's admission conflict-check has nothing to
+    // compare against. Both language rules can therefore sit on disk at once,
+    // which leaves the fallback ambiguous unless the rule breaks the tie.
+    expect(
+      rule!.includes("the LAST one under `## Corrections` is the current one"),
+      "the fallback breaks the append-only tie deterministically",
+    ).toBe(true);
+    expect(
+      rule!.includes("governs conversation-language rules ONLY"),
+      "the tie-break is scoped and does not override the additive rule model",
+    ).toBe(true);
+
+    // The orchestrator resolves from the conversation, not from the precedence
+    // list (which addresses delegated agents and reviewers). Without this the
+    // brief's authority has no source: a stale project.md could still win at
+    // the point the brief is WRITTEN.
+    const stability = entries.find((entry) =>
+      entry.startsWith("**Conversation language — stability**"),
+    );
+    expect(stability, "the stability rule exists").toBeDefined();
+    expect(
+      stability!.includes(
+        "A persisted rule NEVER outranks the brief, and never outranks a later explicit human request to switch",
+      ),
+      "the stability rule binds the orchestrator as well as the delegate",
+    ).toBe(true);
+    expect(
+      stability!.includes("outranks every other source"),
+      "the superseded persisted-rule-wins clause is gone",
+    ).toBe(false);
+  });
+
+  test("e: a stale persisted language plus an explicit switch still delivers the tie-break", () => {
+    // The review's regression case: an existing persisted language, then an
+    // explicit switch, then a delegated stage. The rules are prose, so what is
+    // verifiable here is the DELIVERY contract — that the delegate receives the
+    // stale memory rule and the brief line and the precedence rule that decides
+    // between them, in one prompt. Whether the model then writes English is
+    // model-directed and out of reach of a deterministic test.
+    const proj = mkdtempSync(join(tmpdir(), "aidlc-t263-switch-"));
+    tempDirs.push(proj);
+    const birth = spawnSync(
+      BUN,
+      [UTILITY, "intent-birth", "--scope", "poc", "--arguments", "x", "--project-dir", proj],
+      { encoding: "utf-8" },
+    );
+    expect(birth.status, `intent-birth failed: ${birth.stdout}\n${birth.stderr}`).toBe(0);
+
+    // Persist Japanese the way the learnings ritual would: a single-line rule
+    // appended under `## Corrections` in the active space's project.md.
+    const projectMd = join(proj, "aidlc", "spaces", "default", "memory", "project.md");
+    expect(existsSync(projectMd), "the active space ships project.md").toBe(true);
+    const stale = "- Conversation language: Japanese.";
+    const body = readFileSync(projectMd, "utf-8");
+    expect(body.includes("## Corrections"), "project.md ships ## Corrections").toBe(true);
+    writeFileSync(
+      projectMd,
+      body.replace("## Corrections", `## Corrections\n\n${stale}`),
+      "utf-8",
+    );
+
+    // The human has since asked for English, so the orchestrator states English.
+    const result = augmentDispatchRules(
+      "task",
+      {
+        subagent_type: "aidlc-product-agent",
+        prompt:
+          "Conversation language: English\n\nExecute the current stage and write its artifacts.",
+      },
+      proj,
+    );
+    expect(result.error ?? null, "dispatch rewrite produced no error").toBeNull();
+    expect(result.changed, "the hook rewrote the delegated prompt").toBe(true);
+
+    const prompt = String(result.updatedInput?.prompt ?? "");
+    expect(prompt.includes("Conversation language: English"), "the brief line survives").toBe(
+      true,
+    );
+    expect(prompt.includes(stale.replace(/^- /, "")), "the stale memory rule is delivered too").toBe(
+      true,
+    );
+    expect(
+      prompt.includes("AUTHORITATIVE for delegated work"),
+      "the delegate also receives the rule that resolves the conflict",
+    ).toBe(true);
+    // The bundle is APPENDED after the brief (augmentText: prompt + bundleBlock),
+    // so the stale rule sits LATER in the prompt than the brief line. That is
+    // exactly why precedence has to be stated explicitly rather than implied by
+    // position — pin the arrangement so a future reorder cannot quietly rely on
+    // recency instead.
+    expect(
+      prompt.indexOf("Conversation language: English") <
+        prompt.indexOf("AUTHORITATIVE for delegated work"),
+      "the precedence rule is co-located with the stale rule, after the brief",
+    ).toBe(true);
   });
 });
