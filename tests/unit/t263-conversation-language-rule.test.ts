@@ -485,4 +485,60 @@ describe("t263 conversation-language rule layer", () => {
       "the precedence rule is co-located with the stale rule, after the brief",
     ).toBe(true);
   });
+
+  // === (f) WRITE PATH ======================================================
+  // Field-verified defect. The rule used to say "record the switch as a
+  // single-line rule under `## Corrections` in project.md" — an imperative
+  // addressed to the agent — and only mentioned the §13 ritual parenthetically.
+  // A live run read that as licence to write memory itself: the orchestrator
+  // hand-edited project.md after the human answered "Nothing to add", which
+  // skipped aidlc-learnings.ts entirely (no RULE_LEARNED audit event, no cid
+  // duplicate key, no admission conflict-check) and overrode an explicit human
+  // answer. It justified this with the rule's own "never wait for persistence".
+  //
+  // Persistence is worth nothing here anyway: the brief is authoritative, so a
+  // declined persistence costs the workflow nothing. The rule must therefore
+  // name the ritual as the ONLY write path and forbid a direct edit outright.
+  test("f: only the §13 ritual may persist a switch; a direct memory write is forbidden", () => {
+    const entries = sectionEntries(readFileSync(AUTHORED_ORG_MD, "utf-8"), "Mandated");
+    const rule = entries.find((entry) =>
+      entry.startsWith("**Conversation language — stability**"),
+    );
+    expect(rule, "the stability rule exists").toBeDefined();
+
+    // The imperative that caused the direct write must not come back, in the
+    // authored source OR in any shipped projection.
+    const imperative = "record the switch as a single-line rule under";
+    for (const { label, text } of [
+      { label: "core/memory/org.md", text: readFileSync(AUTHORED_ORG_MD, "utf-8") },
+      ...orgMdProjections().map(({ label, path }) => ({
+        label,
+        text: readFileSync(path, "utf-8"),
+      })),
+    ]) {
+      expect(
+        text.includes(imperative),
+        `${label} must not instruct the agent to write memory itself ("${imperative}")`,
+      ).toBe(false);
+    }
+
+    expect(
+      rule!.includes("the §13 learnings ritual is the ONLY sanctioned write path"),
+      "the ritual is named as the only write path",
+    ).toBe(true);
+    expect(
+      rule!.includes("NEVER edit a memory file directly"),
+      "a direct memory edit is forbidden outright",
+    ).toBe(true);
+    // The exact rationalisation the live run used, closed explicitly.
+    expect(
+      rule!.includes('"do not wait for persistence" is never licence to bypass that gate'),
+      "\"never wait\" cannot be read as licence to bypass the human gate",
+    ).toBe(true);
+    // Declining must be a valid outcome, not a gap the agent should route around.
+    expect(
+      rule!.includes("when the human declines, it is simply not persisted"),
+      "a declined persistence is a correct outcome",
+    ).toBe(true);
+  });
 });
