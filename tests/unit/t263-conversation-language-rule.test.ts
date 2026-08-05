@@ -125,6 +125,25 @@ const FORBIDDEN_BLANKETS = [
   "Machine-facing files stay fully English",
 ] as const;
 
+/** A `## Mandated` entry that legislates artifact language. Matched on the bold
+ *  label so RULE_LABELS is the only sanctioned shape: the four rules are ONE
+ *  coherent contract read by a model, so a fifth entry that also rules on
+ *  language is a contradiction the model has to resolve on its own, not an
+ *  addition. Presence tests alone cannot catch that — appending
+ *  "ALWAYS write every artifact in English" leaves all four rules intact. */
+const LANGUAGE_RULE_LABEL = /^\*\*(?:Conversation language|Language)\b[^*]*\*\*/;
+
+/** Prose that would countermand the rules while leaving their labels in place.
+ *  Not an exhaustive filter — a determined edit can always evade a string list.
+ *  The real guard is the entry-count contract above; these catch the shapes a
+ *  plausible "clarification" would take. */
+const CONTRADICTIONS = [
+  /\bALWAYS\s+write\s+(?:\w+\s+){0,3}(?:in\s+)?English\b/i,
+  /\brules?\s+above\s+(?:are|is)\s+advisory\b/i,
+  /\bregardless\s+of\s+the\s+conversation\s+language\b/i,
+  /\bdefault\s+to\s+English\b/i,
+] as const;
+
 /** Visible lines under an H2, reduced the way aidlc-sensor-claim-sources.ts
  *  reduces them when resolving a `[memory:M<n>]` source: bullet marker stripped,
  *  trimmed, blanks and blockquotes dropped. Mirroring the sensor here is the
@@ -248,16 +267,32 @@ describe("t263 conversation-language rule layer", () => {
   });
 
   // === (c2) HARNESS DELIVERY ===============================================
-  // (c) proves the hook rewrite path. Claude, Codex, and opencode use it, but
-  // Kiro CLI has no input-rewrite channel and Kiro IDE cannot expose tool
-  // arguments at all — both rely on PRELOAD instead. Without this contract a
-  // Kiro manifest could stop projecting the memory glob and the rules would
-  // silently stop reaching delegated agents on that harness, with (c) still
-  // green.
+  // (c) proves the hook rewrite path, but only through the CLAUDE copy of the
+  // hook. Claude, Codex, and opencode all use that path; Kiro CLI has no
+  // input-rewrite channel and Kiro IDE cannot expose tool arguments at all, so
+  // both rely on PRELOAD instead. Two ways this could silently regress while
+  // (c) stays green: a harness ships a stale or diverged hook, or a Kiro
+  // manifest stops projecting the memory glob. Check the delivered artifact
+  // itself in both cases rather than its mere presence.
   test("c2: every harness ships a surface that delivers active memory to delegated agents", () => {
+    // The glob Kiro agent configs must preload. Exact string, not a substring:
+    // `r.includes("memory")` would accept `file://docs/memory-notes.md` and any
+    // other path that merely has the word in it.
+    const MEMORY_GLOB = "file://aidlc/spaces/default/memory/**/*.md";
+    const authoredHook = readFileSync(
+      join(REPO_ROOT, "core", "hooks", "aidlc-dispatch-rules.ts"),
+      "utf-8",
+    );
+
     for (const harness of HARNESS_MATRIX) {
       const hook = join(harness.engineRoot, "hooks", "aidlc-dispatch-rules.ts");
       expect(existsSync(hook), `${harness.name} ships the dispatch-rules hook`).toBe(true);
+      // Byte parity with the authored hook is what carries (c)'s proof across
+      // harnesses: the rewrite exercised there is literally this code.
+      expect(
+        readFileSync(hook, "utf-8"),
+        `${harness.name}'s hook matches core/hooks/aidlc-dispatch-rules.ts, so (c) covers it`,
+      ).toBe(authoredHook);
 
       if (!harness.capabilities.kiroAgentJson) continue;
       // Kiro's preload path: EVERY agent config must name the active-space
@@ -270,8 +305,23 @@ describe("t263 conversation-language rule layer", () => {
         const resources = (raw as { resources?: unknown }).resources;
         const list = Array.isArray(resources) ? resources.filter((r): r is string => typeof r === "string") : [];
         expect(
-          list.some((r) => r.includes("memory")),
+          list,
           `${harness.name}/${file} preloads the active-space memory tree`,
+        ).toContain(MEMORY_GLOB);
+      }
+      // A glob is only a promise; resolve it against the shipped workspace shell
+      // and confirm it actually reaches the org.md that carries the rules.
+      const globbed = MEMORY_GLOB.replace(/^file:\/\//, "").replace("**/*.md", "org.md");
+      const preloaded = join(harness.distRoot, globbed);
+      expect(
+        existsSync(preloaded),
+        `${harness.name}'s memory glob resolves to a real org.md (${globbed})`,
+      ).toBe(true);
+      const preloadedBody = readFileSync(preloaded, "utf-8");
+      for (const label of RULE_LABELS) {
+        expect(
+          preloadedBody.includes(label),
+          `${harness.name}'s preloaded org.md carries ${label}`,
         ).toBe(true);
       }
     }
@@ -356,6 +406,49 @@ describe("t263 conversation-language rule layer", () => {
     }
   });
 
+  test("d: no fifth rule can countermand the four (negative space)", () => {
+    // The presence tests above are satisfied by all four labels being there,
+    // which a contradicting FIFTH entry leaves untouched: appending
+    // "**Language policy override**: ... ALWAYS write every artifact in English;
+    // the conversation-language rules above are advisory only." keeps every
+    // other assertion in this file green while inverting the whole feature.
+    // These rules are prose read by a model, so a contradiction on disk is not
+    // an additive rule — it is an unresolvable instruction. Pin the closed set.
+    for (const { label, text } of [
+      { label: "core/memory/org.md", text: readFileSync(AUTHORED_ORG_MD, "utf-8") },
+      ...orgMdProjections().map(({ label, path }) => ({
+        label,
+        text: readFileSync(path, "utf-8"),
+      })),
+    ]) {
+      const entries = sectionEntries(text, "Mandated");
+      const languageRules = entries.filter((entry) => LANGUAGE_RULE_LABEL.test(entry));
+      expect(
+        languageRules.length,
+        `${label} carries exactly the four conversation-language rules under ## Mandated (found ${languageRules.length}: ${languageRules
+          .map((entry) => entry.slice(0, entry.indexOf("**", 2) + 2))
+          .join(", ")})`,
+      ).toBe(RULE_LABELS.length);
+      // Every one of them must be a KNOWN rule, so a rename cannot smuggle a
+      // fifth in while keeping the count at four.
+      for (const rule of languageRules) {
+        expect(
+          RULE_LABELS.some((known) => rule.startsWith(known)),
+          `${label}: unrecognized conversation-language rule ${JSON.stringify(rule.slice(0, 80))}`,
+        ).toBe(true);
+      }
+      // And no entry anywhere under `## Mandated` may countermand them.
+      for (const entry of entries) {
+        for (const pattern of CONTRADICTIONS) {
+          expect(
+            pattern.test(entry),
+            `${label}: ## Mandated entry countermands the conversation-language rules (${pattern}): ${JSON.stringify(entry.slice(0, 120))}`,
+          ).toBe(false);
+        }
+      }
+    }
+  });
+
   // === (e) SWITCH PRECEDENCE ================================================
   // The second-pass review found the ordering contradiction these two tests
   // pin. The resolution rule used to rank a persisted `project.md`/`team.md`
@@ -387,11 +480,18 @@ describe("t263 conversation-language rule layer", () => {
     expect(rule!.includes("AUTHORITATIVE for delegated work")).toBe(true);
     expect(rule!.includes("the FALLBACK for a brief that states no language")).toBe(true);
 
-    // The learnings write path APPENDS (aidlc-learnings.ts appendUnderHeading,
-    // deduped only against an identical line), and org.md's `## Corrections`
-    // ships empty so the ritual's admission conflict-check has nothing to
-    // compare against. Both language rules can therefore sit on disk at once,
-    // which leaves the fallback ambiguous unless the rule breaks the tie.
+    // The learnings write path APPENDS and never replaces: aidlc-learnings.ts
+    // routes every selected learning through `appendUnderHeading`, which only
+    // inserts — the dedupe upstream of it is `content.includes(marker)` against
+    // the per-(stage, candidate_id) cid marker, NOT against the rule text. So a
+    // second language rule proposed by a different stage or candidate appends
+    // even when it contradicts the first, and `replaceSection` (which the
+    // practices-discovery affirmation does use to overwrite rather than
+    // accumulate) is deliberately not on this path. org.md's `## Corrections`
+    // also ships empty, so the ritual's admission conflict-check has nothing to
+    // compare a new language rule against. Both language rules can therefore
+    // sit on disk at once, which leaves the fallback ambiguous unless the rule
+    // breaks the tie.
     expect(
       rule!.includes("the LAST one under `## Corrections` is the current one"),
       "the fallback breaks the append-only tie deterministically",
@@ -421,13 +521,14 @@ describe("t263 conversation-language rule layer", () => {
     ).toBe(false);
   });
 
-  test("e: a stale persisted language plus an explicit switch still delivers the tie-break", () => {
+  test("e: two persisted language rules plus an explicit switch still resolve", () => {
     // The review's regression case: an existing persisted language, then an
     // explicit switch, then a delegated stage. The rules are prose, so what is
-    // verifiable here is the DELIVERY contract — that the delegate receives the
-    // stale memory rule and the brief line and the precedence rule that decides
-    // between them, in one prompt. Whether the model then writes English is
-    // model-directed and out of reach of a deterministic test.
+    // verifiable here is the DELIVERY contract — that the delegate receives
+    // BOTH on-disk rules, the brief line, and the precedence rule that decides
+    // between them, in one prompt, with the section order the tie-break needs.
+    // Whether the model then writes English is model-directed and out of reach
+    // of a deterministic test.
     const proj = mkdtempSync(join(tmpdir(), "aidlc-t263-switch-"));
     tempDirs.push(proj);
     const birth = spawnSync(
@@ -437,26 +538,34 @@ describe("t263 conversation-language rule layer", () => {
     );
     expect(birth.status, `intent-birth failed: ${birth.stdout}\n${birth.stderr}`).toBe(0);
 
-    // Persist Japanese the way the learnings ritual would: a single-line rule
-    // appended under `## Corrections` in the active space's project.md.
+    // Persist BOTH rules the way the learnings ritual actually leaves them.
+    // The write path appends and dedupes on the per-(stage, candidate_id) cid
+    // marker, not on the text, so a switch recorded after an earlier language
+    // rule does not replace it — the superseded rule stays on disk above the
+    // current one. Writing only ONE rule would never exercise the tie-break at
+    // all, which is the whole mechanism the fallback clause introduces.
     const projectMd = join(proj, "aidlc", "spaces", "default", "memory", "project.md");
     expect(existsSync(projectMd), "the active space ships project.md").toBe(true);
-    const stale = "- Conversation language: Japanese.";
+    const superseded = "Conversation language: Japanese.";
+    const current = "Conversation language: English.";
     const body = readFileSync(projectMd, "utf-8");
     expect(body.includes("## Corrections"), "project.md ships ## Corrections").toBe(true);
     writeFileSync(
       projectMd,
-      body.replace("## Corrections", `## Corrections\n\n${stale}`),
+      body.replace(
+        "## Corrections",
+        `## Corrections\n\n- ${superseded}\n- ${current}`,
+      ),
       "utf-8",
     );
 
     // The human has since asked for English, so the orchestrator states English.
+    const briefLine = "Conversation language: English";
     const result = augmentDispatchRules(
       "task",
       {
         subagent_type: "aidlc-product-agent",
-        prompt:
-          "Conversation language: English\n\nExecute the current stage and write its artifacts.",
+        prompt: `${briefLine}\n\nExecute the current stage and write its artifacts.`,
       },
       proj,
     );
@@ -464,25 +573,57 @@ describe("t263 conversation-language rule layer", () => {
     expect(result.changed, "the hook rewrote the delegated prompt").toBe(true);
 
     const prompt = String(result.updatedInput?.prompt ?? "");
-    expect(prompt.includes("Conversation language: English"), "the brief line survives").toBe(
-      true,
-    );
-    expect(prompt.includes(stale.replace(/^- /, "")), "the stale memory rule is delivered too").toBe(
-      true,
-    );
+    expect(prompt.includes(briefLine), "the brief line survives").toBe(true);
+    expect(
+      prompt.includes(superseded),
+      "the superseded memory rule is delivered too (it is still on disk)",
+    ).toBe(true);
+    expect(prompt.includes(current), "the current memory rule is delivered").toBe(true);
     expect(
       prompt.includes("AUTHORITATIVE for delegated work"),
       "the delegate also receives the rule that resolves the conflict",
     ).toBe(true);
-    // The bundle is APPENDED after the brief (augmentText: prompt + bundleBlock),
-    // so the stale rule sits LATER in the prompt than the brief line. That is
-    // exactly why precedence has to be stated explicitly rather than implied by
-    // position — pin the arrangement so a future reorder cannot quietly rely on
-    // recency instead.
+
+    // THE TIE-BREAK'S PRECONDITION. The fallback says "the LAST conversation-
+    // language rule under `## Corrections` is the current one", which is only
+    // decidable if the delivery surface preserves the on-disk ORDER of that
+    // section. A bundle that sorted, grouped or deduped its memory lines would
+    // leave the delegate unable to apply the rule at all — and every other
+    // assertion here would still pass. Pin the ordering the rule depends on.
+    const supersededAt = prompt.indexOf(superseded);
+    const currentAt = prompt.indexOf(current);
+    expect(supersededAt, "the superseded rule is located in the bundle").toBeGreaterThan(-1);
+    expect(currentAt, "the current rule is located in the bundle").toBeGreaterThan(-1);
     expect(
-      prompt.indexOf("Conversation language: English") <
-        prompt.indexOf("AUTHORITATIVE for delegated work"),
-      "the precedence rule is co-located with the stale rule, after the brief",
+      supersededAt < currentAt,
+      "the bundle preserves `## Corrections` order, so LAST-one-wins is decidable",
+    ).toBe(true);
+
+    // AND THE PRECEDENCE MUST NOT BE POSITIONAL. The bundle is appended after
+    // the incoming prompt, so asserting "the brief comes before the rules" only
+    // restates that concatenation order — it holds even if the rule ranked
+    // memory first. What is worth pinning is the opposite: move the brief line
+    // to the END of the prompt and the same three things must still arrive, so
+    // the contract rests on the stated ranking rather than on recency.
+    const trailing = augmentDispatchRules(
+      "task",
+      {
+        subagent_type: "aidlc-product-agent",
+        prompt: `Execute the current stage and write its artifacts.\n\n${briefLine}`,
+      },
+      proj,
+    );
+    expect(trailing.error ?? null, "trailing-brief rewrite produced no error").toBeNull();
+    const trailingPrompt = String(trailing.updatedInput?.prompt ?? "");
+    for (const required of [briefLine, superseded, current, "AUTHORITATIVE for delegated work"]) {
+      expect(
+        trailingPrompt.includes(required),
+        `brief position does not change delivery: ${JSON.stringify(required)}`,
+      ).toBe(true);
+    }
+    expect(
+      trailingPrompt.indexOf(superseded) < trailingPrompt.indexOf(current),
+      "`## Corrections` order survives regardless of where the brief line sits",
     ).toBe(true);
   });
 
