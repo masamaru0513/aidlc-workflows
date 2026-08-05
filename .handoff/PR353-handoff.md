@@ -7,30 +7,31 @@
 ## このブランチの構成（最初に読む）
 
 このドキュメントは `handoff/pr353-adversarial-review` ブランチに置かれている。
-**PRブランチ (`fix/v2-language-convention`) は一切変更していない。**
+**`.handoff/` はこのブランチだけの作業用。PRには含まれていない（確認済み）。**
 
 ```
 handoff/pr353-adversarial-review
 ├── <このコミット>  docs: hand off the PR #353 adversarial review    ← .handoff/ のみ
 ├── c7bf3df         test: close the negative-space and delivery gaps in t263
-└── 6cd704c         fix: make the §13 ritual the only write path ... ← PRブランチのHEAD
+└── 6cd704c         fix: make the §13 ritual the only write path ... ← 当時のPRブランチHEAD
 ```
 
-### 使い方
+### 状態: 反映完了
 
-テスト修正だけをPRブランチに載せる（`.handoff/` は持ち込まない）:
+`c7bf3df` は **`809e631` としてPRブランチ `fix/v2-language-convention` にcherry-pick済み**（差分SHA256一致、改変なし）。
+PR descriptionとコメントの訂正（項目1・3）も別エージェントが対応済み。
+
+**このドキュメントは経緯と根拠の記録として読むもので、追加のcherry-pickは不要。**
+再検証したい場合:
 
 ```powershell
 cd "C:\Users\ionn\OneDrive\ドキュメント\GitHub\OSSContribute\aidlc-workflows"
+git fetch origin
 git switch fix/v2-language-convention
-git cherry-pick c7bf3df
-bun run check   # exit 0 を確認
-git push --force-with-lease origin fix/v2-language-convention   # ★ユーザー承認を取ってから
+git reset --hard origin/fix/v2-language-convention
+bun run check                                              # exit 0
+bun test tests/unit/t263-conversation-language-rule.test.ts # 13 pass / 444 expect
 ```
-
-`c7bf3df` の中身は `CHANGELOG.md` (+1) と `tests/unit/t263-conversation-language-rule.test.ts` (+179/-37) の2ファイルのみ。`core/` は触っていないので **dist再生成は不要**。
-
-`.handoff/` はこのブランチだけの作業用ディレクトリ。**PRに含めないこと。**
 
 ---
 
@@ -120,13 +121,31 @@ apackeerの4指摘はすべて実体として解消済み（version bump 2.5.37�
 | 7 | c2が弱い。非Kiroは `existsSync` のみ、Kiroは `r.includes("memory")` で `file://docs/memory-notes.md` でも通る | 3段構えに強化: hookのバイト等価 + `toContain(MEMORY_GLOB)` 完全一致 + globを実org.mdに解決してRULE_LABELS存在確認 |
 | 8 | `prompt.indexOf(brief) < prompt.indexOf("AUTHORITATIVE")` が**恒真**（hookが `prompt + bundle` で連結するため） | 削除し位置独立性検証に置換。briefLineを末尾に置いた2回目の呼び出しで4要素すべてが届くことを確認 |
 
-### 未着手
+### 完了（別エージェントが `809e631` としてPRブランチに反映済み）
 
-| # | 内容 |
-|---|---|
-| 1 | **PR descriptionが古い**。本文は「`257b43a3` にリベース」「upstreamは2.5.11」「version bumpは意図的に省略」と書いてあるが、実際は `c73ee98` ベースで **2.5.37→2.5.38 をbump済み**。レビュアがdescriptionだけ読むと「指摘4が未対応」に見える |
-| 3 | PRコメントで「persistence は単独で曖昧性解消できない」と述べたが、`replaceSection()` が既存（practices-discovery affirmationが `aidlc-team.md` の累積回避に使用）。apackeerの代案「deterministic single-current-language record」は既存インフラで実現可能。「不可能」ではなく「additiveモデルを崩さない設計選択」と訂正すべき |
-| 9 | **スキップ指示済み**（pinする文字列を短いキーフレーズに縮める案） |
+| # | 内容 | 反映先 |
+|---|---|---|
+| 1 | **PR descriptionが古い問題** — 「`257b43a3` にリベース」「upstreamは2.5.11」「version bumpは意図的に省略」が実態と食い違っていた | description更新済み。`2.5.11` と `intentionally omitted` は消え、`c73ee98` と `2.5.38` が入り、冒頭に「以前こう書いていたが stale なので訂正する」と明記されている |
+| 3 | **`replaceSection` の訂正** — 「persistence は単独で曖昧性解消できない」は不正確 | description/コメントに `replaceSection`・`candidate_id`・`deterministic single-current-language`（4箇所）・`additive`（3箇所）の言及あり |
+| 9 | pinする文字列の短縮 | **ユーザー判断でスキップ** |
+
+### 検証済みの最終状態（2026-08-06 実測）
+
+```
+PRブランチ: origin/fix/v2-language-convention = 809e631
+  809e631  test: close the negative-space and delivery gaps in t263   ← cherry-pick済み
+  6cd704c  fix: make the §13 ritual the only write path for a language switch
+  407abe8  fix: make the delegated brief authoritative for the conversation language
+  ecf8049  fix: respect conversation language across all harnesses
+```
+
+- `809e631` の差分は `c7bf3df` と **SHA256一致**（`98C1E1E6...`）。改変なしでcherry-pickされている
+- `.handoff/` は **PRブランチに混入していない**（`git ls-tree` でマッチした18件は全てフレームワーク既存の `approval-handoff` 関連）
+- `bun run check` → **exit 0**（package --check 5ハーネス / typecheck 3構成 / biome 558ファイル）
+- `t263` → **13 pass / 0 fail / 444 expect**
+- `t68` / `gen-coverage-registry` / `t-memory-seed` → 全て exit 0
+
+**残作業なし。** apackeer の再レビュー待ち。
 
 ---
 
@@ -156,25 +175,36 @@ gen-coverage-registry              → pass（t263がratchetに登録済み）
 t-memory-seed                      → exit 0
 ```
 
-### 既存の赤（ベースでも同一に失敗、本PRとは無関係）
+### 既存の赤3件（Windows環境固有。upstreamのバグでもPRの回帰でもない）
 
-`upstream/v2` の `c73ee98` のクリーンworktreeで同じ結果を確認済み。
+`upstream/v2` の `c73ee98` のクリーンworktreeでも同一に失敗することを確認済み。さらに**macOSでは3件とも通る**と報告があり、実際に原因を追ったところ全てWindowsの環境差分だった。
 
-- `t150-codex-packaging` — base exit 1 / PR exit 1
-- `t240-opencode-packaging` — base exit 1 / PR exit 1（`Expected: 1 / Received: undefined`）
-- `t248-steering-content-delivery` — base exit 1 / PR exit 1
+| テスト | 失敗箇所 | 原因 |
+|---|---|---|
+| `t150-codex-packaging` | `:169` `expect(r.status).toBe(1)` | `spawnSync("grep", ["-rn", ...])`。Windowsに `grep` が無いため `status` が `undefined`（POSIXでは no match で 1） |
+| `t240-opencode-packaging` | `:189` `expect(r.status).toBe(1)` | 同上。`grep` 不在 |
+| `t248-steering-content-delivery` | `:591`, `:639` | `symlinkSync` が `EPERM: operation not permitted`。Windowsはシンボリック作成に管理者権限またはDeveloper Modeが必要 |
+
+いずれも**アサーション内容ではなく前提コマンド／OS権限の不足**で落ちている。テスト対象のロジックは検証されていない（false negative）。
+
+**結論: このPRの評価には影響しない。** PRコメントで pre-existing failure に言及する場合は「Windows環境固有（`grep` 不在と `symlink` EPERM）で、macOS/LinuxとCIでは通る」と正確に書くこと。「upstreamで壊れている」と書くと誤りになる。
+
+> 補足: 以前のPRコメントでは pre-existing failure を `t248-codekb-scope-diff` / `t255-workspace-sync` / `t163-reaper-steal-race` と報告していたが、今回の実測は上記3件。当時とテスト構成が変わっているため、**言及するなら実測値に合わせること。**
 
 検証手順（再現したい場合）:
 
 ```powershell
 git worktree add "$env:TEMP\aidlc-base" upstream/v2
 cd "$env:TEMP\aidlc-base"; bun install
-bun test tests/unit/t240-opencode-packaging.test.ts
+bun test tests/unit/t240-opencode-packaging.test.ts   # exit 1（Windowsのみ）
 # 後始末
 git worktree remove "$env:TEMP\aidlc-base" --force
 ```
 
-> 注: 前回のPRコメントでは pre-existing failure を `t248-codekb-scope-diff` / `t255-workspace-sync` / `t163-reaper-steal-race` と報告していたが、今回の実測では上記3件だった。**PRコメントを更新するなら実測値に合わせること。**
+Windowsでこの3件を通したい場合の選択肢（**このPRの範囲外**。やるなら別PR）:
+
+- `grep` を入れる（Git for Windows付属の `usr/bin` をPATHに追加）＋ Developer Mode有効化で `symlink` 許可
+- または上流に `grep` 依存を `spawnSync` から Node/Bun のファイル走査に置き換えるPRを出す（クロスプラットフォーム化として筋は通る）
 
 ---
 
